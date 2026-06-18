@@ -1,0 +1,6 @@
+{
+  "name": "Niklo",
+  "description": "All-in-One Travel Platform for bus bookings, cab rides, and smarter trip planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
