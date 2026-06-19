@@ -17,7 +17,9 @@ export default function Navbar({
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
-    { id: 'home', label: 'Home' },
+    { id: 'home', label: 'Explore Home' },
+    { id: 'plan-ride', label: 'Plan Ride' },
+    { id: 'services', label: 'All Services' },
     { id: 'language', label: 'Language' },
   ];
 

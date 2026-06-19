@@ -7,6 +7,9 @@ import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
 import OtpForm from './components/OtpForm';
 import BookingDashboard from './components/BookingDashboard';
+import ExploreHome from './components/ExploreHome';
+import PlanRide from './components/PlanRide';
+import ChooseService from './components/ChooseService';
 import Footer from './components/Footer';
 import { Sparkles, Route, Info, CheckCircle2, ChevronRight, UserCheck } from 'lucide-react';
 
@@ -126,7 +129,7 @@ export default function App() {
         currentView={currentView}
         user={user}
         onNavigate={(view) => {
-          if (view === 'home' || view === 'language' || user) {
+          if (view === 'home' || view === 'plan-ride' || view === 'services' || view === 'language' || user) {
             setCurrentView(view);
           } else {
             setCurrentView('login');
@@ -150,49 +153,43 @@ export default function App() {
       <main className="flex-1">
         {currentView === 'home' && (
           <div className="space-y-0" id="home-view-group">
-            {/* Splash Banner & Search Hero in one flow */}
-            <Hero
-              onGetStarted={() => {
+            <ExploreHome
+              user={user}
+              onNavigate={setCurrentView}
+              onSearchDone={handleWidgetSearch}
+              onSelectService={(service) => {
                 if (user) {
                   setCurrentView('dashboard');
                 } else {
-                  setCurrentView('signup');
+                  showToast(`Accessing ${service.toUpperCase()} module. Standard credentials verification required.`);
+                  setCurrentView('login');
                 }
               }}
-              onSearchDone={handleWidgetSearch}
             />
-
-            {/* Reorganized Onboarding Tour feature blocks side-by-side or carousel */}
-            <Features />
-
-            {/* Quick interactive journey checklist section to mimic onboarding flows */}
-            <section className="bg-white border-t border-slate-150 py-16 px-6" id="quick-steps-section">
-              <div className="max-w-4xl mx-auto text-center space-y-12">
-                <div>
-                  <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">How to Get Started in 3 Simple Steps</h3>
-                  <p className="text-sm text-slate-500 mt-2">Connecting your commuter routes takes less than 60 seconds.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="space-y-3 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left">
-                    <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm flex items-center justify-center">1</span>
-                    <h4 className="text-base font-bold text-slate-800">Choose Language</h4>
-                    <p className="text-xs text-slate-500 leading-normal">Configure localization settings immediately corresponding to regional transit schedules.</p>
-                  </div>
-                  <div className="space-y-3 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left">
-                    <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm flex items-center justify-center">2</span>
-                    <h4 className="text-base font-bold text-slate-800">Phone Verification</h4>
-                    <p className="text-xs text-slate-500 leading-normal">Enter phone number and auto-verify instantly with our prompt 6-digit OTP engine.</p>
-                  </div>
-                  <div className="space-y-3 p-6 bg-slate-50 rounded-2xl border border-slate-100 text-left">
-                    <span className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm flex items-center justify-center">3</span>
-                    <h4 className="text-base font-bold text-slate-800">Search & Board</h4>
-                    <p className="text-xs text-slate-500 leading-normal">Receive your digital PDF e-ticket with live coordinates sync and ETA status.</p>
-                  </div>
-                </div>
-              </div>
-            </section>
           </div>
+        )}
+
+        {currentView === 'plan-ride' && (
+          <PlanRide
+            user={user}
+            onNavigate={setCurrentView}
+            onSearchDone={handleWidgetSearch}
+          />
+        )}
+
+        {currentView === 'services' && (
+          <ChooseService
+            user={user}
+            onNavigate={setCurrentView}
+            onSelectService={(service) => {
+              if (user) {
+                setCurrentView('dashboard');
+              } else {
+                showToast(`Checking regional operator slots for ${service}. Please verify identity first.`);
+                setCurrentView('login');
+              }
+            }}
+          />
         )}
 
         {currentView === 'language' && (

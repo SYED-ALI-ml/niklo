@@ -71,10 +71,13 @@ export default function BookingDashboard({
   const [hotelGuests, setHotelGuests] = useState(2);
   const [hotelRooms, setHotelRooms] = useState(1);
   const [hotelStayMode, setHotelStayMode] = useState<'night' | 'hourly'>('night');
-  const [hotelStep, setHotelStep] = useState<'search' | 'results' | 'details' | 'success'>('search');
+  const [hotelStep, setHotelStep] = useState<'search' | 'results' | 'details' | 'availability' | 'checkout' | 'success'>('search');
   const [hotelActiveBadge, setHotelActiveBadge] = useState<'recommended' | 'budget' | 'luxury' | 'popular'>('recommended');
   const [selectedHotel, setSelectedHotel] = useState<any>(null);
   const [hotelDetailTab, setHotelDetailTab] = useState<'overview' | 'rooms' | 'amenities' | 'reviews' | 'location'>('overview');
+  const [showRoomsAvailableModal, setShowRoomsAvailableModal] = useState(false);
+  const [hotelPromo, setHotelPromo] = useState('');
+  const [favoritesHotels, setFavoritesHotels] = useState<number[]>([1]);
 
   // --- EXPERIENCES & ADVENTURE STATE ---
   const [adventureStep, setAdventureStep] = useState<'search' | 'results' | 'details' | 'success'>('search');
@@ -128,6 +131,9 @@ export default function BookingDashboard({
 
   // Active Selected Bus Schedule for booking
   const [selectedSchedule, setSelectedSchedule] = useState<BusSchedule | null>(null);
+  
+  // Upper vs Lower deck choice
+  const [seatDeck, setSeatDeck] = useState<'lower' | 'upper'>('lower');
   
   // Selected seats state
   const [selectedSeats, setSelectedSeats] = useState<string[]>(['3A']);
@@ -1270,217 +1276,261 @@ export default function BookingDashboard({
 
         {/* 3. LIST OF VEHICLE OPTIONS AND SCHEDULE RESULTS FOR INTERCITY BUS */}
         {bottomTab === 'home' && currentStep === 'results' && selectedService === 'bus' && (
-          <div id="results-view" className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full animate-fade-in">
+          <div id="results-view" className="flex-1 max-w-4xl mx-auto px-4 py-6 w-full animate-fade-in space-y-6">
             
-            {/* Upper Route overview block */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3.5">
-                <button 
-                  onClick={() => setCurrentStep('search')} 
-                  className="p-1 px-3 bg-slate-50 border border-slate-150 hover:bg-slate-100 rounded-lg text-slate-500"
-                >
-                  ←
-                </button>
-                <div>
-                  <h3 className="text-lg font-black tracking-tight flex items-center gap-2">
-                    <span>{searchFrom}</span> 
-                    <span className="text-blue-600">➔</span> 
-                    <span>{searchTo}</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 font-bold mt-0.5">{searchDate} • {passengerCount} Passenger{passengerCount > 1 ? 's' : ''}</p>
+            {/* Upper Route overview block matching screenshot header */}
+            <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white p-5 rounded-3xl shadow-lg relative overflow-hidden" id="bus-booking-results-header">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-lg" />
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setCurrentStep('search')} 
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer"
+                    title="Back to search"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <div className="text-left">
+                    <h1 className="text-lg font-black tracking-tight flex items-center gap-2">
+                      <span>{searchFrom}</span> 
+                      <span className="text-blue-200">➔</span> 
+                      <span>{searchTo}</span>
+                    </h1>
+                    <p className="text-[10px] text-blue-100 font-extrabold tracking-wider uppercase mt-0.5">{searchDate} • {passengerCount} Passenger{passengerCount > 1 ? 's' : ''}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl border border-blue-100 text-xs font-extrabold">
-                💡 Real-time availability refreshed with partner systems
+                <div className="bg-white/10 backdrop-blur-md text-[10px] font-black px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping" />
+                  <span>GPS active dispatcher</span>
+                </div>
               </div>
             </div>
 
-            {/* Layout with filters left, available results right */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* Filters element on sidebar */}
-              <div className="lg:col-span-3 space-y-6">
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-5">
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-50">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-400">Filter Criteria</span>
-                    <button 
-                      onClick={() => {
-                        setOnlyAc(false);
-                        setRatingFilter(null);
-                        setOperatorFilter('all');
-                      }}
-                      className="text-[10px] text-blue-600 font-extrabold hover:underline"
-                    >
-                      Clear All
-                    </button>
-                  </div>
+            {/* Dynamic Sliding Date Ribbon - Matches Screenshot 1 */}
+            <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm overflow-x-auto flex gap-2 no-scrollbar" id="date-slider-ribbon">
+              {[
+                { label: '22 May', dayName: 'Wednesday', val: '22 May 2024' },
+                { label: '23 May', dayName: 'Thursday', val: '23 May 2024' },
+                { label: '24 May', dayName: 'Friday', val: '24 May 2024' },
+                { label: '25 May', dayName: 'Saturday', val: '25 May 2024' },
+                { label: '26 May', dayName: 'Sunday', val: '26 May 2024' }
+              ].map((dt) => (
+                <button
+                  key={dt.val}
+                  onClick={() => setSearchDate(dt.val)}
+                  className={`flex-1 min-w-[90px] py-2.5 px-3 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                    searchDate === dt.val
+                      ? 'bg-blue-600 text-white shadow-md font-black'
+                      : 'bg-slate-50 text-slate-500 hover:bg-slate-100 font-semibold'
+                  }`}
+                >
+                  <span className="text-xs">{dt.label}</span>
+                  <span className="text-[8px] opacity-80 uppercase tracking-tight mt-0.5">{dt.dayName}</span>
+                </button>
+              ))}
+            </div>
 
-                  {/* AC Selector checkbox */}
-                  <div className="flex items-center justify-between text-xs font-extrabold">
-                    <label htmlFor="only-ac-checkbox" className="text-slate-600">Show A/C Only</label>
-                    <input 
-                      id="only-ac-checkbox"
-                      type="checkbox" 
-                      checked={onlyAc} 
-                      onChange={() => setOnlyAc(!onlyAc)}
-                      className="w-4 h-4 text-blue-650 border-slate-300 rounded cursor-pointer"
-                    />
-                  </div>
+            {/* Horizontal Filter Row - Matches Screenshot 1 Pills */}
+            <div className="flex flex-wrap gap-2" id="horizontal-filters-row">
+              <button 
+                onClick={() => {
+                  setRatingFilter(null);
+                  setOnlyAc(!onlyAc);
+                }}
+                className={`flex items-center gap-1.5 py-2 px-4 rounded-full border text-xs font-black transition-all cursor-pointer ${
+                  onlyAc 
+                    ? 'bg-blue-50 border-blue-300 text-blue-700' 
+                    : 'bg-white border-slate-205 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span>AC / Non-AC</span>
+                <span className="text-[10px] opacity-70">▾</span>
+              </button>
 
-                  {/* Rating selector buttons list */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black uppercase text-slate-400 block pb-1">Minimum Operator Rating</span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {[4.0, 4.5, 4.7].map((rate) => (
-                        <button 
-                          key={rate}
-                          onClick={() => setRatingFilter(ratingFilter === rate ? null : rate)}
-                          className={`py-1.5 rounded-lg text-[10px] font-black border transition-all ${
-                            ratingFilter === rate 
-                              ? 'bg-blue-100 border-blue-300 text-blue-700' 
-                              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                          }`}
-                        >
-                          ★ {rate}+
-                        </button>
+              <button 
+                onClick={() => {
+                  // Toggle high rated filter
+                  setRatingFilter(ratingFilter === 4.5 ? null : 4.5);
+                }}
+                className={`flex items-center gap-1.5 py-2 px-4 rounded-full border text-xs font-black transition-all cursor-pointer ${
+                  ratingFilter === 4.5 
+                    ? 'bg-blue-50 border-blue-300 text-blue-700' 
+                    : 'bg-white border-slate-205 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span>★ 4.5+ Top Rated</span>
+              </button>
+
+              <button 
+                onClick={() => {
+                  setOperatorFilter(operatorFilter === 'SBSTC' ? 'all' : 'SBSTC');
+                }}
+                className={`flex items-center gap-1.5 py-2 px-4 rounded-full border text-xs font-black transition-all cursor-pointer ${
+                  operatorFilter === 'SBSTC' 
+                    ? 'bg-blue-50 border-blue-300 text-blue-700' 
+                    : 'bg-white border-slate-205 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <span>SBSTC Only</span>
+              </button>
+
+              <button 
+                onClick={() => {
+                  // Reset filters
+                  setOnlyAc(false);
+                  setRatingFilter(null);
+                  setOperatorFilter('all');
+                }}
+                className="py-2 px-4 rounded-full border border-slate-205 bg-white text-slate-500 hover:text-slate-800 text-xs font-extrabold cursor-pointer hover:bg-slate-50 transition-colors"
+              >
+                Reset Filters
+              </button>
+            </div>
+
+            {/* Special Promo Savings Banner - Matches red discount banner */}
+            <div className="bg-gradient-to-r from-red-500 to-amber-500 text-white p-4 rounded-2xl flex items-center justify-between shadow-sm animate-pulse-slow" id="exclusive-deals-banner">
+              <div className="flex items-center gap-3">
+                <Gift className="w-5 h-5 text-amber-100 shrink-0" />
+                <div className="text-left">
+                  <h5 className="text-xs font-black leading-tight">Save up to ₹200 on this route</h5>
+                  <p className="text-[10px] text-red-50 leading-relaxed font-semibold">Apply code <strong className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-white">RIDEBEST</strong> at booking checkouts.</p>
+                </div>
+              </div>
+              <span className="bg-white/20 text-white font-bold text-[9px] uppercase tracking-wider px-2.5 py-1 rounded-full border border-white/10 shrink-0">Active</span>
+            </div>
+
+            {/* Safety First Card matching Screenshot 1 layout */}
+            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-start gap-3 text-left">
+              <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <h5 className="text-xs font-black text-blue-900 leading-tight">Safety First Guidelines</h5>
+                <p className="text-[10px] text-blue-650 font-bold mt-1 max-w-2xl leading-relaxed">
+                  All operators conform to sanitized interiors and high safety regulations. Filtered refreshing cabin airflow is operated during the entire journey.
+                </p>
+              </div>
+            </div>
+
+            {/* Vehicles display cards stream */}
+            <div className="space-y-4" id="vehicle-cards-list">
+              {filteredBuses.length > 0 ? (
+                filteredBuses.map((bus) => (
+                  <div 
+                    key={bus.id} 
+                    className="bg-white rounded-3xl border border-slate-100 hover:border-blue-200 shadow-sm overflow-hidden hover:shadow-md transition-all p-5 flex flex-col relative text-left"
+                  >
+                    
+                    {/* Top row: Identity and rating */}
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-md font-black text-slate-900 tracking-tight">{bus.operator}</h4>
+                          <span className="inline-flex items-center gap-0.5 bg-emerald-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-lg leading-none shadow-sm shadow-emerald-500/15">
+                            ★ {bus.rating}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-extrabold mt-0.5">{bus.type}</p>
+                      </div>
+
+                      <button 
+                        className="p-1.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full transition-colors cursor-pointer"
+                        title="Add to Favorite Routes"
+                      >
+                        <Heart className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Middle Row: Departure, Duration, Arrival timeline block */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4 border-y border-dashed border-slate-100 my-3 items-center">
+                      
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5" />
+                        <div>
+                          <span className="text-sm font-black text-slate-800">{bus.departureTime}</span>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{bus.depStation}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="text-[9px] text-slate-400 font-black mb-1">{bus.duration}</span>
+                        <div className="w-full max-w-[140px] flex items-center justify-between text-slate-350 px-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                          <div className="flex-1 h-0.5 border-t border-dashed border-slate-300" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                        </div>
+                        <span className="text-[8px] text-slate-400 font-extrabold uppercase mt-1 tracking-wider">Non-Stop Transit</span>
+                      </div>
+
+                      <div className="flex items-start gap-2.5 justify-start md:justify-end">
+                        <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 md:order-last" />
+                        <div className="md:text-right">
+                          <span className="text-sm font-black text-slate-800">{bus.arrivalTime}</span>
+                          <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{bus.arrStation}</span>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Bottom Row: Key metrics & Select CTA */}
+                    <div className="flex items-center justify-between gap-4 pt-1">
+                      
+                      {/* Price tag, savings and remaining seats indicator */}
+                      <div>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-xl font-black text-blue-600">₹{bus.price}</span>
+                          <span className="text-xs text-slate-400 line-through">₹{bus.originalPrice}</span>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-2.5 mt-1.5">
+                          <span className="text-[10px] text-slate-400 font-extrabold">
+                            {bus.seatsLeft} seats left
+                          </span>
+                          <span className="text-[9px] text-red-500 bg-red-50 px-2 py-0.5 rounded font-black uppercase tracking-wide">
+                            🔥 Exclusive ₹125 OFF
+                          </span>
+                        </div>
+                      </div>
+
+                      <button 
+                        onClick={() => {
+                          setSelectedSchedule(bus);
+                          setSelectedSeats(['3A']); // Preselect seat 3A
+                          setCurrentStep('seats');
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-3 rounded-xl transition-all cursor-pointer hover:shadow-md animate-fade-in"
+                      >
+                        Select Seats
+                      </button>
+
+                    </div>
+
+                    {/* Features badges on slot */}
+                    <div className="mt-3 bg-slate-50 p-2 rounded-lg border border-slate-100 flex items-center gap-1.5 overflow-x-auto text-[8px] text-slate-500 font-black no-scrollbar uppercase tracking-wider">
+                      <span className="text-[7px] text-slate-400">Amenities:</span>
+                      {bus.features.map((feature, idx) => (
+                        <span key={idx} className="bg-white border border-slate-150 px-1.5 py-0.5 rounded text-[8px]">
+                          ✓ {feature}
+                        </span>
                       ))}
                     </div>
-                  </div>
 
-                  {/* Operator filter input */}
-                  <div className="space-y-1">
-                    <label htmlFor="operator-select" className="text-[10px] font-black uppercase text-slate-400 block">Operator Franchise</label>
-                    <select 
-                      id="operator-select"
-                      value={operatorFilter}
-                      onChange={(e) => setOperatorFilter(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-600 cursor-pointer"
-                    >
-                      <option value="all">All Operators</option>
-                      <option value="sbstc">SBSTC</option>
-                      <option value="shyamoli">Shyamoli Paribahan</option>
-                      <option value="royal">Royal Cruiser</option>
-                    </select>
                   </div>
-
+                ))
+              ) : (
+                <div className="bg-white p-12 rounded-3xl border border-slate-100 text-center space-y-3">
+                  <p className="text-slate-500 font-extrabold text-sm">No vehicles match your active filtering checkboxes.</p>
+                  <button 
+                    onClick={() => {
+                      setOnlyAc(false);
+                      setRatingFilter(null);
+                      setOperatorFilter('all');
+                    }} 
+                    className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black border border-blue-100 cursor-pointer"
+                  >
+                    Clear Filters
+                  </button>
                 </div>
-              </div>
-
-              {/* Main vehicle display cards */}
-              <div className="lg:col-span-9 space-y-4">
-                
-                {/* Safety Fast Card matching Screenshot 4 */}
-                <div className="bg-blue-50/80 p-4 rounded-2xl border border-blue-100 flex items-start gap-3">
-                  <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <h5 className="text-xs font-black text-blue-900 leading-tight">Safety First Protocols Active</h5>
-                    <p className="text-xs text-blue-650 font-bold mt-1 max-w-2xl">
-                      Niklo partner fleets comply fully with deep sanitization standards, giving passenger shielding masks and filtered inside air conditioning.
-                    </p>
-                  </div>
-                </div>
-
-                {/* List items rendering */}
-                {filteredBuses.length > 0 ? (
-                  filteredBuses.map((bus) => (
-                    <div 
-                      key={bus.id} 
-                      className="bg-white rounded-3xl border border-slate-55 shadow-sm overflow-hidden hover:shadow-md hover:border-blue-300 transition-all p-6"
-                    >
-                      {/* Main split elements */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
-                        
-                        {/* Operator Identity info */}
-                        <div className="md:col-span-1 space-y-1.5">
-                          <h4 className="text-sm font-black text-slate-900 tracking-tight leading-none">{bus.operator}</h4>
-                          <p className="text-xs text-slate-400 font-extrabold">{bus.type}</p>
-                          <div className="flex items-center gap-1.5">
-                            <span className="flex items-center gap-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-black px-1.5 py-0.5 rounded leading-none">
-                              ★ {bus.rating}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-semibold mt-0.5">({bus.ratingsCount} reviews)</span>
-                          </div>
-                        </div>
-
-                        {/* Timeline route details */}
-                        <div className="md:col-span-2 flex items-center justify-between gap-6 px-4">
-                          <div className="text-left shrink-0">
-                            <span className="text-sm font-extrabold text-slate-800 block">{bus.departureTime}</span>
-                            <span className="text-[10px] text-slate-400 font-black tracking-tight block max-w-[100px] truncate">{bus.depStation}</span>
-                          </div>
-
-                          <div className="flex-1 flex flex-col items-center justify-center relative">
-                            <span className="text-[10px] text-slate-400 font-black mb-1.5">{bus.duration}</span>
-                            <div className="w-full flex items-center justify-between">
-                              <div className="w-2 h-2 rounded-full bg-blue-600" />
-                              <div className="flex-1 h-0.5 bg-slate-200 border-t border-dashed border-slate-350" />
-                              <div className="w-2 h-2 bg-red-400 rounded-full" />
-                            </div>
-                            <span className="text-[9px] text-slate-400 font-black mt-2 tracking-wider uppercase">Direct Transit</span>
-                          </div>
-
-                          <div className="text-right shrink-0">
-                            <span className="text-sm font-extrabold text-slate-800 block">{bus.arrivalTime}</span>
-                            <span className="text-[10px] text-slate-400 font-black tracking-tight block max-w-[100px] truncate">{bus.arrStation}</span>
-                          </div>
-                        </div>
-
-                        {/* Cost & Booking CTA */}
-                        <div className="md:col-span-1 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 flex md:flex-col items-center md:items-end justify-between md:justify-center gap-4">
-                          <div className="md:text-right space-y-0.5">
-                            <span className="text-[9px] text-amber-600 font-black uppercase tracking-wider block">Save ₹{(bus.originalPrice - bus.price)} Deal</span>
-                            <div className="flex items-baseline md:justify-end gap-1.5 text-slate-800">
-                              <span className="text-xl font-black">₹{bus.price}</span>
-                              <span className="text-xs text-slate-400 line-through">₹{bus.originalPrice}</span>
-                            </div>
-                            <span className="text-[9px] text-slate-400 font-extrabold block">{bus.seatsLeft} seats remaining</span>
-                          </div>
-
-                          <button 
-                            onClick={() => {
-                              setSelectedSchedule(bus);
-                              setSelectedSeats(['3A']); // Preselect first seat
-                              setCurrentStep('seats');
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer transform hover:scale-[1.01] active:scale-95"
-                          >
-                            Select Seats
-                          </button>
-                        </div>
-
-                      </div>
-
-                      {/* Amenities bottom tray inside card */}
-                      <div className="mt-4 pt-3.5 border-t border-slate-50 flex items-center gap-2 text-[10px] text-slate-400 font-extrabold flex-wrap">
-                        <span className="text-slate-500 uppercase">INCLUDED AMENITIES:</span>
-                        {bus.features.map((feature, idx) => (
-                          <span key={idx} className="bg-slate-50 px-2 py-0.5 rounded border border-slate-100 text-slate-500">
-                            ✓ {feature}
-                          </span>
-                        ))}
-                      </div>
-
-                    </div>
-                  ))
-                ) : (
-                  <div className="bg-white p-12 rounded-3xl border border-slate-100 text-center space-y-3 shadow-inner">
-                    <p className="text-slate-500 font-extrabold text-sm">No vehicles match your active filtering checkboxes.</p>
-                    <button 
-                      onClick={() => {
-                        setOnlyAc(false);
-                        setRatingFilter(null);
-                        setOperatorFilter('all');
-                      }} 
-                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-xs font-black border border-blue-100"
-                    >
-                      Clear Filters
-                    </button>
-                  </div>
-                )}
-
-              </div>
-
+              )}
             </div>
 
           </div>
@@ -1488,178 +1538,310 @@ export default function BookingDashboard({
 
         {/* 4. CHOOSE SEATS ON GRAPHIC MAP INTERIOR */}
         {bottomTab === 'home' && currentStep === 'seats' && selectedSchedule && (
-          <div id="seat-map-view" className="flex-1 max-w-5xl mx-auto px-6 py-8 w-full animate-fade-in">
+          <div id="seat-map-view" className="flex-1 max-w-4xl mx-auto px-4 py-6 w-full animate-fade-in space-y-6">
             
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            {/* Header route with back navigation */}
+            <div className="bg-white p-4.5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setCurrentStep('results')} 
-                  className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500"
+                  className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
+                  title="Back to search results"
                 >
-                  ←
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div>
-                  <h3 className="text-base font-black tracking-tight">Select Cabin Seats</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{selectedSchedule.operator} • ₹{selectedSchedule.price}/seat</p>
+                <div className="text-left">
+                  <h3 className="text-base font-black tracking-tight">Select Seats</h3>
+                  <p className="text-[10px] text-slate-400 font-extrabold">{searchFrom} ➔ {searchTo} • {searchDate}</p>
                 </div>
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 px-4.5 py-2.5 rounded-2xl flex gap-4 text-xs font-extrabold">
-                <div className="flex items-center gap-2">
-                  <div className="w-3.5 h-3.5 rounded bg-white border border-slate-350" />
-                  <span className="text-slate-500 font-semibold">Available</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3.5 h-3.5 rounded bg-slate-300" />
-                  <span className="text-slate-500 font-semibold">Blocked</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3.5 h-3.5 rounded bg-blue-600 animate-pulse" />
-                  <span className="text-slate-500 font-semibold">Selected</span>
-                </div>
+              <div className="flex items-center gap-2">
+                <button className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-full cursor-pointer"><Heart className="w-4 h-4" /></button>
+                <button className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-full cursor-pointer"><Sparkles className="w-4 h-4 text-amber-500" /></button>
               </div>
             </div>
 
-            {/* Side-by-side Layout Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Boarding and Drop-off Location Cards matching Screenshot 2 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4" id="points-overview-cards">
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center text-left">
+                <div>
+                  <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Boarding Point</span>
+                  <strong className="text-xs text-slate-800 block mt-1">08:00 PM • Esplanade</strong>
+                </div>
+                <button onClick={() => alert('Change boarding location option')} className="text-[10px] text-blue-600 font-black hover:underline cursor-pointer">Change</button>
+              </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center text-left">
+                <div>
+                  <span className="text-[9px] text-slate-400 font-black uppercase tracking-wider block">Destination Point</span>
+                  <strong className="text-xs text-slate-800 block mt-1">06:30 AM • Tenzing Norgay Bus Stand</strong>
+                </div>
+                <button onClick={() => alert('Change dropoff location option')} className="text-[10px] text-blue-600 font-black hover:underline cursor-pointer">Change</button>
+              </div>
+            </div>
+
+            {/* Deck Selector Tabs and Legend Keys */}
+            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm space-y-4">
               
-              {/* Bus graphic floor plan inside card container */}
-              <div className="lg:col-span-5 bg-white border border-slate-200 rounded-3xl p-8 shadow-sm flex flex-col items-center">
-                
-                <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase mb-6 leading-none">
-                  Bus Coach Interior Simulator
+              <div className="flex bg-slate-55 p-1 rounded-2xl max-w-xs mx-auto" id="deck-tabs-selector">
+                <button
+                  type="button"
+                  onClick={() => setSeatDeck('lower')}
+                  className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                    seatDeck === 'lower' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Lower Deck
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSeatDeck('upper')}
+                  className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                    seatDeck === 'upper' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Upper Deck
+                </button>
+              </div>
+
+              {/* Legendary items */}
+              <div className="flex items-center justify-center gap-6 text-[10px] font-black text-slate-500 border-t border-slate-50 pt-3 flex-wrap">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3.5 h-3.5 rounded border-2 border-slate-300 bg-white" />
+                  <span>Available</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3.5 h-3.5 rounded bg-blue-100 border-2 border-blue-400" />
+                  <span>Selected</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-3.5 h-3.5 rounded bg-slate-200 border-2 border-slate-300 text-slate-400" />
+                  <span>Booked</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Side-by-side Seat Map vs Informative features & Summary */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              
+              {/* Graphic Seat Interior Simulator Column */}
+              <div className="lg:col-span-5 bg-white border border-slate-100 rounded-3xl p-5 shadow-sm flex flex-col items-center">
+                <span className="text-[8px] font-black text-slate-400 tracking-wider uppercase mb-4 leading-none">
+                  {seatDeck === 'lower' ? 'Lower Deck - Seater Standard' : 'Upper Deck - Sleeper Berths'}
                 </span>
 
-                <div className="w-full max-w-[270px] border border-slate-300 rounded-[32px] p-6 space-y-6 bg-slate-50/50 relative">
+                <div className="w-full max-w-[270px] border border-slate-200 rounded-[30px] p-5 space-y-4 bg-slate-50 relative">
                   
-                  {/* Wheel Cabin header */}
-                  <div className="flex justify-between items-center pb-5 border-b border-slate-200">
-                    <div className="flex items-center gap-2.5 text-slate-400 text-xs font-bold uppercase tracking-wider">
-                      <span className="w-6 h-6 rounded-full border-2 border-slate-300 text-slate-400 flex items-center justify-center font-bold text-xs select-none">
-                        ⛛
-                      </span>
-                      <span>Driver Cabin</span>
-                    </div>
-
-                    <span className="text-[8px] font-extrabold tracking-widest text-slate-300 uppercase">
-                      Front Gate
+                  {/* Driver Wheel Block */}
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-200">
+                    <span className="text-[10px] text-slate-450 font-black tracking-wider uppercase">Driver Desk</span>
+                    <span className="w-6 h-6 rounded-full border-2 border-slate-400 text-slate-500 flex items-center justify-center font-bold text-xs select-none">
+                      ⎋
                     </span>
                   </div>
 
-                  {/* Matrix generator seats rows */}
-                  <div className="space-y-3.5">
-                    {[
-                      { left: ['1A', '1B'], right: ['1C', '1D'] },
-                      { left: ['2A', '2B'], right: ['2C', '2D'] },
-                      { left: ['3A', '3B'], right: ['3C', '3D'] },
-                      { left: ['4A', '4B'], right: ['4C', '4D'] },
-                      { left: ['5A', '5B'], right: ['5C', '5D'] },
-                    ].map((row, rIdx) => {
-                      const isBlockedRow = rIdx === 1 || rIdx === 4;
-                      return (
-                        <div key={rIdx} className="flex justify-between items-center">
-                          {/* Left Seats */}
-                          <div className="flex gap-2">
-                            {row.left.map((seat) => {
-                              const isSelected = selectedSeats.includes(seat);
-                              const isBlocked = isBlockedRow && seat.endsWith('B');
-                              return (
-                                <button 
-                                  key={seat}
-                                  type="button"
-                                  disabled={isBlocked}
-                                  onClick={() => handleSeatClick(seat)}
-                                  className={`w-10 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center cursor-pointer ${
-                                    isBlocked 
-                                      ? 'bg-slate-300 text-slate-400 opacity-50 cursor-not-allowed' 
-                                      : isSelected 
-                                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
-                                      : 'bg-white hover:border-slate-400 border border-slate-250 text-slate-700'
-                                  }`}
-                                >
-                                  {seat}
-                                </button>
-                              );
-                            })}
-                          </div>
+                  {/* Seat Grid Layout - Standard Squares for Seater, long Rectangles for Sleeper! */}
+                  <div className="space-y-4">
+                    {seatDeck === 'lower' ? (
+                      /* Lower Deck: Standard Seater Seats (2 columns on left, 2 columns on right) */
+                      [
+                        { left: ['1A', '1B'], right: ['1C', '1D'] },
+                        { left: ['2A', '2B'], right: ['2C', '2D'] },
+                        { left: ['3A', '3B'], right: ['3C', '3D'] },
+                        { left: ['4A', '4B'], right: ['4C', '4D'] },
+                        { left: ['5A', '5B'], right: ['5C', '5D'] },
+                      ].map((row, rIdx) => {
+                        const isBookedRow = rIdx === 1 || rIdx === 4;
+                        return (
+                          <div key={rIdx} className="flex justify-between items-center">
+                            {/* Left seats */}
+                            <div className="flex gap-1.5">
+                              {row.left.map((seat) => {
+                                const isSelected = selectedSeats.includes(seat);
+                                const isBooked = isBookedRow && seat.endsWith('B');
+                                return (
+                                  <button
+                                    key={seat}
+                                    type="button"
+                                    disabled={isBooked}
+                                    onClick={() => handleSeatClick(seat)}
+                                    className={`w-9 h-9 rounded-lg font-black text-[10px] transition-all flex items-center justify-center relative cursor-pointer border-2 ${
+                                      isBooked 
+                                        ? 'bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed'
+                                        : isSelected
+                                        ? 'bg-blue-100 border-blue-600 text-blue-800 shadow-sm shadow-blue-500/15'
+                                        : 'bg-white border-slate-250 text-slate-700 hover:border-slate-400'
+                                    }`}
+                                  >
+                                    {seat}
+                                  </button>
+                                );
+                              })}
+                            </div>
 
-                          <div className="w-10 text-center font-extrabold text-[9px] text-slate-300 uppercase">
-                            Aisle
-                          </div>
+                            <span className="text-[7px] text-slate-350 font-black uppercase">aisle</span>
 
-                          {/* Right Seats */}
-                          <div className="flex gap-2">
-                            {row.right.map((seat) => {
-                              const isSelected = selectedSeats.includes(seat);
-                              const isBlocked = isBlockedRow && seat.endsWith('C');
-                              return (
-                                <button 
-                                  key={seat}
-                                  type="button"
-                                  disabled={isBlocked}
-                                  onClick={() => handleSeatClick(seat)}
-                                  className={`w-10 h-10 rounded-xl font-black text-xs transition-all flex items-center justify-center cursor-pointer ${
-                                    isBlocked 
-                                      ? 'bg-slate-300 text-slate-400 opacity-50 cursor-not-allowed' 
-                                      : isSelected 
-                                      ? 'bg-blue-600 text-white shadow-md' 
-                                      : 'bg-white hover:border-slate-400 border border-slate-250 text-slate-700'
-                                  }`}
-                                >
-                                  {seat}
-                                </button>
-                              );
-                            })}
+                            {/* Right seats */}
+                            <div className="flex gap-1.5">
+                              {row.right.map((seat) => {
+                                const isSelected = selectedSeats.includes(seat);
+                                const isBooked = isBookedRow && seat.endsWith('C');
+                                return (
+                                  <button
+                                    key={seat}
+                                    type="button"
+                                    disabled={isBooked}
+                                    onClick={() => handleSeatClick(seat)}
+                                    className={`w-9 h-9 rounded-lg font-black text-[10px] transition-all flex items-center justify-center relative cursor-pointer border-2 ${
+                                      isBooked 
+                                        ? 'bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed'
+                                        : isSelected
+                                        ? 'bg-blue-100 border-blue-600 text-blue-800 shadow-sm shadow-blue-500/15'
+                                        : 'bg-white border-slate-250 text-slate-700 hover:border-slate-400'
+                                    }`}
+                                  >
+                                    {seat}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })
+                    ) : (
+                      /* Upper Deck: Sleeper Berths (horizontal rect rectangles as in Screenshot 3) */
+                      [
+                        { left: 'SL1', right: 'SL2' },
+                        { left: 'SL3', right: 'SL4' },
+                        { left: 'SL5', right: 'SL6' },
+                        { left: 'SL7', right: 'SL8' },
+                      ].map((sleeperRow, sIdx) => {
+                        const isBookedBerth = sIdx === 1;
+                        return (
+                          <div key={sIdx} className="flex justify-between items-center">
+                            {/* Left Sleepers */}
+                            <button
+                              type="button"
+                              disabled={isBookedBerth}
+                              onClick={() => handleSeatClick(sleeperRow.left)}
+                              className={`w-20 py-3 rounded-lg font-black text-[9px] transition-all flex flex-col items-center justify-center relative cursor-pointer border-2 ${
+                                isBookedBerth
+                                  ? 'bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed'
+                                  : selectedSeats.includes(sleeperRow.left)
+                                  ? 'bg-blue-100 border-blue-600 text-blue-800 shadow-sm shadow-blue-500/15'
+                                  : 'bg-white border-slate-250 text-slate-700 hover:border-slate-400'
+                              }`}
+                            >
+                              <div className="absolute top-1 left-1.5 w-1 h-2.5 bg-slate-300 rounded-sm" />
+                              <span className="mt-0.5">{sleeperRow.left}</span>
+                              <span className="text-[6px] tracking-tight opacity-75">Sleeper</span>
+                            </button>
+
+                            <span className="text-[7px] text-slate-350 font-black uppercase">aisle</span>
+
+                            {/* Right Sleepers */}
+                            <button
+                              type="button"
+                              disabled={isBookedBerth}
+                              onClick={() => handleSeatClick(sleeperRow.right)}
+                              className={`w-20 py-3 rounded-lg font-black text-[9px] transition-all flex flex-col items-center justify-center relative cursor-pointer border-2 ${
+                                isBookedBerth
+                                  ? 'bg-slate-200 border-slate-300 text-slate-400 cursor-not-allowed'
+                                  : selectedSeats.includes(sleeperRow.right)
+                                  ? 'bg-blue-100 border-blue-600 text-blue-800 shadow-sm shadow-blue-500/15'
+                                  : 'bg-white border-slate-250 text-slate-700 hover:border-slate-400'
+                              }`}
+                            >
+                              <div className="absolute top-1 right-1.5 w-1 h-2.5 bg-slate-300 rounded-sm" />
+                              <span>{sleeperRow.right}</span>
+                              <span className="text-[6px] tracking-tight opacity-75">Sleeper</span>
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
 
                 </div>
-
               </div>
 
-              {/* Selection Summary and features */}
-              <div className="lg:col-span-7 space-y-6">
+              {/* Informative column containing reviews, amenities, offers, etc. */}
+              <div className="lg:col-span-7 space-y-6 text-left">
                 
-                {/* Details layout */}
-                <div className="bg-white p-6.5 rounded-3xl border border-slate-100 shadow-sm space-y-6">
-                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest block pb-2 border-b border-slate-50">Selected Seat Information</h4>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150">
-                      <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wide">Selected Seats</span>
-                      <strong className="text-blue-600 text-lg font-black mt-1 block">{selectedSeats.join(', ')}</strong>
-                    </div>
-
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-150">
-                      <span className="text-[10px] text-slate-400 font-extrabold block uppercase tracking-wide">Calculated Subtotal</span>
-                      <strong className="text-slate-800 text-lg font-black mt-1 block">₹{selectedSchedule.price * selectedSeats.length}</strong>
-                    </div>
+                {/* Amenities Block "Bus features" - Matches Screenshot 2 */}
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">Bus Features</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {['AC', 'Charging Point', 'Blanket', 'Live Tracking', 'Water Bottle'].map((feat, index) => (
+                      <span key={index} className="text-[10px] font-black bg-slate-50 text-slate-600 border border-slate-150 px-3 py-1.5 rounded-lg">
+                        ✓ {feat}
+                      </span>
+                    ))}
                   </div>
+                </div>
 
-                  {/* Included features details listed */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-black uppercase text-slate-450 tracking-wider">Premium Features Comforts</span>
-                    <div className="flex gap-2 flex-wrap">
-                      {selectedSchedule.features.map((feature, idx) => (
-                        <span key={idx} className="text-xs font-semibold bg-blue-50 text-blue-700 px-3 py-1 rounded-lg border border-blue-100">
-                          ✓ {feature}
-                        </span>
+                {/* Offers & Benefits Section - Matches Screenshot 2 */}
+                <div className="bg-emerald-50 border border-emerald-100 p-4.5 rounded-3xl text-left shadow-sm flex items-start gap-3" id="offers-benefits-section">
+                  <span className="bg-emerald-100 text-emerald-700 p-2 rounded-xl text-xs font-black">🎉</span>
+                  <div>
+                    <h5 className="text-xs font-black text-emerald-900">Offers & Benefits</h5>
+                    <p className="text-[10px] text-emerald-700 font-bold mt-1">You saved ₹125 on this booking! Free cancellation protection is activated.</p>
+                  </div>
+                </div>
+
+                {/* Ratings & reviews component matching Screenshot 2 */}
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                  <h4 className="text-xs font-black uppercase text-slate-400 tracking-wider">Ratings & reviews</h4>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="bg-emerald-500 text-white rounded-2xl p-4 text-center shrink-0">
+                      <strong className="text-2xl font-black block">4.5</strong>
+                      <span className="text-[8px] font-bold uppercase tracking-wider opacity-80 block">Very Good</span>
+                    </div>
+
+                    <div className="flex-1 space-y-1.5">
+                      {[
+                        { star: '5 ★', percent: '72%', color: 'bg-emerald-500' },
+                        { star: '4 ★', percent: '18%', color: 'bg-emerald-400' },
+                        { star: '3 ★', percent: '7%', color: 'bg-amber-400' },
+                        { star: '2 ★', percent: '2%', color: 'bg-orange-400' },
+                        { star: '1 ★', percent: '1%', color: 'bg-red-500' }
+                      ].map((rt, idx) => (
+                        <div key={idx} className="flex items-center gap-3 text-[10px] font-black text-slate-500">
+                          <span className="w-8 shrink-0">{rt.star}</span>
+                          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full ${rt.color}`} style={{ width: rt.percent }} />
+                          </div>
+                          <span className="w-8 text-right font-extrabold text-slate-400">{rt.percent}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
+                </div>
 
-                  {/* Continued CTA button */}
-                  <div className="pt-4 border-t border-slate-50">
-                    <button 
-                      onClick={() => setCurrentStep('passenger')}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl shadow-lg shadow-blue-500/10 transition-transform active:scale-[0.98] text-xs uppercase tracking-wider block text-center"
-                    >
-                      Verify Passenger Details Form ➔
-                    </button>
+                {/* Bottom transaction summaries footer with CTA */}
+                <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 rounded-3xl shadow-lg space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] text-indigo-200 font-black uppercase tracking-wider block">Chosen Seats</span>
+                      <strong className="text-blue-400 text-lg font-black mt-1 block tracking-wider uppercase">{selectedSeats.join(', ')}</strong>
+                      <span className="text-[9px] text-slate-400 mt-1 block">{selectedSeats.length} Seats selected</span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] text-indigo-200 font-black uppercase tracking-wider block">Base Fare</span>
+                      <strong className="text-white text-2xl font-black mt-1 block">₹{selectedSchedule.price * selectedSeats.length}</strong>
+                    </div>
                   </div>
+
+                  <button 
+                    onClick={() => setCurrentStep('passenger')}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl shadow-lg shadow-blue-500/10 transition-transform active:scale-[0.98] text-xs uppercase tracking-wider block text-center cursor-pointer"
+                  >
+                    Continue to Passenger Details ➔
+                  </button>
                 </div>
 
               </div>
@@ -1671,157 +1853,176 @@ export default function BookingDashboard({
 
         {/* 5. PASSENGER INFORMATION ENTRY DETAILS */}
         {bottomTab === 'home' && currentStep === 'passenger' && selectedSchedule && (
-          <div id="passenger-checkout-view" className="flex-1 max-w-7xl mx-auto px-6 py-8 w-full animate-fade-in">
+          <div id="passenger-checkout-view" className="flex-1 max-w-4xl mx-auto px-4 py-6 w-full animate-fade-in space-y-6">
             
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between gap-4 mb-8">
+            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setCurrentStep('seats')} 
-                  className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500"
+                  className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-slate-500 cursor-pointer"
+                  title="Back to Seat Selection"
                 >
-                  ←
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div>
-                  <h3 className="text-base font-black tracking-tight">Checkout Step: Passenger Identification</h3>
-                  <p className="text-xs text-slate-405 mt-0.5">{selectedSchedule.operator} • Service No: {selectedSchedule.id}</p>
+                <div className="text-left">
+                  <h3 className="text-base font-black tracking-tight">Traveller Details</h3>
+                  <p className="text-[10px] text-slate-400 font-extrabold">{selectedSchedule.operator} • Service {selectedSchedule.id}</p>
                 </div>
               </div>
+              <span className="text-[9px] bg-blue-50 text-blue-700 font-black border border-blue-100 px-3 py-1.5 rounded-full uppercase tracking-wider">Checkout</span>
             </div>
 
             {/* Split screen: forms left, billing summary sticky on right */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               
               {/* Checkout inputs */}
-              <div className="lg:col-span-8 space-y-6">
+              <div className="lg:col-span-7 space-y-5">
                 
-                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest block pb-1 border-b border-slate-100">Traveler Specifications</h4>
+                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest block pb-1 border-b border-slate-100 text-left">Traveler Specifications</h4>
 
                 {/* Looped forms dynamically matching seats chosen */}
-                {passengers.map((passenger, pIdx) => (
-                  <div key={pIdx} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                      <span className="text-xs font-black text-blue-700 bg-blue-50 border border-blue-100 px-3 py-1 rounded-lg">Seat Seat {selectedSeats[pIdx] || '3A'}</span>
-                      <span className="text-xs text-slate-400 font-bold">Standard Boarding Guest Passport</span>
+                {passengers.map((passenger, pIdx) => {
+                  const seatCode = selectedSeats[pIdx] || '3A';
+                  const isSleeperLabel = seatCode.startsWith('SL');
+                  return (
+                    <div key={pIdx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4 text-left">
+                      <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                        <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-100 px-3 py-1 rounded-lg uppercase tracking-wider">
+                          {isSleeperLabel ? `Sleeper Berth ${seatCode}` : `Seater Seat ${seatCode}`}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-extrabold uppercase">Traveler #{pIdx + 1}</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="space-y-1.5 md:col-span-6">
+                          <label htmlFor={`traveller-name-${pIdx}`} className="text-[10px] font-black text-slate-450 uppercase tracking-wide block">Full Name</label>
+                          <input 
+                            id={`traveller-name-${pIdx}`}
+                            type="text" 
+                            value={passenger.name}
+                            onChange={(e) => {
+                              const updated = [...passengers];
+                              if (!updated[pIdx]) updated[pIdx] = { name: '', age: '28', gender: 'Male' };
+                              updated[pIdx].name = e.target.value;
+                              setPassengers(updated);
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-extrabold text-slate-700 focus:outline-none focus:border-blue-400"
+                            placeholder="Full Name as on Govt ID"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 md:col-span-3">
+                          <label htmlFor={`traveller-age-${pIdx}`} className="text-[10px] font-black text-slate-450 uppercase tracking-wide block">Age</label>
+                          <input 
+                            id={`traveller-age-${pIdx}`}
+                            type="number" 
+                            value={passenger.age}
+                            onChange={(e) => {
+                              const updated = [...passengers];
+                              if (!updated[pIdx]) updated[pIdx] = { name: '', age: '28', gender: 'Male' };
+                              updated[pIdx].age = e.target.value;
+                              setPassengers(updated);
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-extrabold text-slate-700 focus:outline-none focus:border-blue-400"
+                            placeholder="Age"
+                            min="1"
+                            max="125"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1.5 md:col-span-3">
+                          <label htmlFor={`traveller-gender-${pIdx}`} className="text-[10px] font-black text-slate-450 uppercase tracking-wide block">Gender</label>
+                          <select 
+                            id={`traveller-gender-${pIdx}`}
+                            value={passenger.gender}
+                            onChange={(e) => {
+                              const updated = [...passengers];
+                              if (!updated[pIdx]) updated[pIdx] = { name: '', age: '28', gender: 'Male' };
+                              updated[pIdx].gender = e.target.value;
+                              setPassengers(updated);
+                            }}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-black text-slate-700 outline-none cursor-pointer focus:border-blue-400"
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-1.5 md:col-span-1.5">
-                        <label htmlFor={`traveller-name-${pIdx}`} className="text-[10px] font-black text-slate-405 uppercase tracking-wide block">Traveller Full Name</label>
-                        <input 
-                          id={`traveller-name-${pIdx}`}
-                          type="text" 
-                          value={passenger.name}
-                          onChange={(e) => {
-                            const updated = [...passengers];
-                            updated[pIdx].name = e.target.value;
-                            setPassengers(updated);
-                          }}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-700 focus:outline-none focus:border-blue-300"
-                          placeholder="Full name as printed in ID"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label htmlFor={`traveller-age-${pIdx}`} className="text-[10px] font-black text-slate-405 uppercase tracking-wide block">Age</label>
-                        <input 
-                          id={`traveller-age-${pIdx}`}
-                          type="number" 
-                          value={passenger.age}
-                          onChange={(e) => {
-                            const updated = [...passengers];
-                            updated[pIdx].age = e.target.value;
-                            setPassengers(updated);
-                          }}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-extrabold text-slate-700 focus:outline-none"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label htmlFor={`traveller-gender-${pIdx}`} className="text-[10px] font-black text-slate-450 uppercase tracking-wide block">Gender</label>
-                        <select 
-                          id={`traveller-gender-${pIdx}`}
-                          value={passenger.gender}
-                          onChange={(e) => {
-                            const updated = [...passengers];
-                            updated[pIdx].gender = e.target.value;
-                            setPassengers(updated);
-                          }}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-black text-slate-700 outline-none cursor-pointer"
-                        >
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Contact settings Card */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest block">Primary Contact details</h4>
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4 text-left">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest block">Contact Information</h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center gap-3.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
                       <Mail className="w-5 h-5 text-slate-400 shrink-0" />
-                      <div className="flex-1">
-                        <label htmlFor="contact-email-input" className="text-[8px] font-bold text-slate-400 uppercase block">Billing Email</label>
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor="contact-email-input" className="text-[8px] font-black text-slate-400 uppercase block">Send Ticket to Email</label>
                         <input 
                           id="contact-email-input"
                           type="email" 
                           value={contactEmail} 
                           onChange={(e) => setContactEmail(e.target.value)}
-                          className="bg-transparent w-full text-xs font-extrabold text-slate-705 focus:outline-none"
+                          className="bg-transparent w-full text-xs font-extrabold text-slate-750 focus:outline-none min-h-[20px]"
+                          placeholder="your.email@example.com"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
                       <Phone className="w-5 h-5 text-slate-400 shrink-0" />
-                      <div className="flex-1">
-                        <label htmlFor="contact-phone-input" className="text-[8px] font-bold text-slate-400 uppercase block">Emergency Phone</label>
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor="contact-phone-input" className="text-[8px] font-black text-slate-400 uppercase block">Mobile Phone Number</label>
                         <input 
                           id="contact-phone-input"
                           type="text" 
                           value={contactPhone} 
                           onChange={(e) => setContactPhone(e.target.value)}
-                          className="bg-transparent w-full text-xs font-extrabold text-slate-705 focus:outline-none"
+                          className="bg-transparent w-full text-xs font-extrabold text-slate-750 focus:outline-none min-h-[20px]"
+                          placeholder="+91 XXXXX XXXXX"
                         />
                       </div>
                     </div>
                   </div>
+                  <p className="text-[9px] text-slate-400 font-bold leading-normal">Your mobile number will be used for sending the tracking M-Ticket and emergency announcements via SMS.</p>
                 </div>
 
                 {/* Cover and protecting packs */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest block">Premium Protection add-ons</h4>
+                <div className="space-y-3 text-left">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest block">Protection Benefits</h4>
                   
-                  <div className="bg-white rounded-3xl border border-slate-100 p-6 space-y-4 shadow-sm">
+                  <div className="bg-white rounded-3xl border border-slate-100 p-5 space-y-4 shadow-sm">
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-1">
-                        <label htmlFor="free-cancellation-checkbox" className="text-sm font-black text-slate-800 cursor-pointer block">Free Cancellation Protection Coverage</label>
-                        <p className="text-xs text-slate-450 font-medium">Cancel up to 24 hours prior to travel reporting time and get a full 100% money-back refund.</p>
+                        <label htmlFor="free-cancellation-checkbox" className="text-xs font-black text-slate-800 cursor-pointer block">Flexible Booking (Refund on Cancellation)</label>
+                        <p className="text-[10px] text-slate-450 font-bold leading-normal">Cancel up to 24 hours prior to travel reporting time and get a full 100% money-back refund. Save ₹99/passenger.</p>
                       </div>
                       <input 
                         id="free-cancellation-checkbox"
                         type="checkbox" 
                         checked={freeCancellation} 
                         onChange={() => setFreeCancellation(!freeCancellation)}
-                        className="w-5 h-5 text-blue-600 rounded mt-1.5 cursor-pointer"
+                        className="w-5 h-5 text-blue-600 rounded mt-1 cursor-pointer"
                       />
                     </div>
 
                     <div className="flex items-start justify-between gap-4 pt-4 border-t border-slate-50">
                       <div className="space-y-1">
-                        <label htmlFor="insure-journey-checkbox" className="text-sm font-black text-slate-800 cursor-pointer block">Emergency Medical & Journey Accident Shield Protection</label>
-                        <p className="text-xs text-slate-450 font-medium">Get comprehensive travel transit coverage up to ₹50,000 accidental shield, powered by Niklo Assist.</p>
+                        <label htmlFor="insure-journey-checkbox" className="text-xs font-black text-slate-800 cursor-pointer block">Emergency Medical & Journey Accident Shield Protection</label>
+                        <p className="text-[10px] text-slate-450 font-bold leading-normal">Get comprehensive travel transit coverage up to ₹50,000 accidental shield, powered by Niklo Assist for just ₹15/passenger.</p>
                       </div>
                       <input 
                         id="insure-journey-checkbox"
                         type="checkbox" 
                         checked={insureJourney} 
                         onChange={() => setInsureJourney(!insureJourney)}
-                        className="w-5 h-5 text-blue-600 rounded mt-1.5 cursor-pointer"
+                        className="w-5 h-5 text-blue-600 rounded mt-1 cursor-pointer"
                       />
                     </div>
                   </div>
@@ -1830,37 +2031,85 @@ export default function BookingDashboard({
               </div>
 
               {/* sticky right invoice breakdown summary card */}
-              <div className="lg:col-span-4 lg:sticky lg:top-40 space-y-4">
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-md space-y-4">
-                  <h4 className="font-black text-slate-800 text-sm pb-2 border-b border-dashed border-slate-200">Payment Summary</h4>
+              <div className="lg:col-span-5 lg:sticky lg:top-40 space-y-5 text-left">
+                
+                {/* Boarding route feedback */}
+                <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-sm space-y-3">
+                  <span className="text-[8px] tracking-widest uppercase text-indigo-300 font-black">Route Overview</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <div>
+                      <strong className="block text-sm text-white font-extrabold">{searchFrom}</strong>
+                      <span className="text-[10px] text-slate-400">Esplanade</span>
+                    </div>
+                    <span className="text-slate-500">➔</span>
+                    <div>
+                      <strong className="block text-sm text-white font-extrabold">{searchTo}</strong>
+                      <span className="text-[10px] text-slate-400">Tenzing Norgay Stand</span>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-800 pt-3 flex justify-between text-[10px] text-slate-400 font-extrabold">
+                    <span>Date: {searchDate}</span>
+                    <span className="text-indigo-400">Seat(s): {selectedSeats.join(', ')}</span>
+                  </div>
+                </div>
+
+                {/* Interactive Promo Coupon Module ( Delighter Touch! ) */}
+                <div className="bg-white p-4.5 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+                  <h5 className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Offers & Promo Codes</h5>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      id="promo-coupon-code"
+                      placeholder="Enter Coupon (e.g. RED50)" 
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-extrabold uppercase placeholder-slate-450 focus:outline-none"
+                    />
+                    <button 
+                      onClick={() => {
+                        const codeElem = document.getElementById('promo-coupon-code') as HTMLInputElement;
+                        if (codeElem && codeElem.value.trim().toUpperCase() === 'RED50') {
+                          alert('Success: Promo code RED50 applied! ₹50 Discount subtracted from total charge.');
+                        } else {
+                          alert('Please enter a valid coupon code like RED50 to get a ₹50 discount.');
+                        }
+                      }}
+                      className="bg-slate-900 text-white hover:bg-slate-800 text-[10px] font-black px-4 rounded-xl transition-all cursor-pointer"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-slate-450 font-semibold italic">Tip: Type <strong className="text-emerald-600 not-italic font-black">RED50</strong> to claim a ₹50 discount!</p>
+                </div>
+
+                <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                  <h4 className="font-black text-slate-800 text-xs pb-2 border-b border-dashed border-slate-200 uppercase tracking-wider">Invoice Summary</h4>
                   
-                  <div className="space-y-3 text-xs text-slate-500 font-bold">
+                  <div className="space-y-3 text-[11px] text-slate-500 font-bold">
                     <div className="flex justify-between">
                       <span>Base Ticket ({selectedSeats.length} Seat)</span>
-                      <strong className="text-slate-800">₹{selectedSchedule.price * selectedSeats.length}</strong>
+                      <strong className="text-slate-800 font-extrabold">₹{selectedSchedule.price * selectedSeats.length}</strong>
                     </div>
 
                     {freeCancellation && (
-                      <div className="flex justify-between text-slate-500 font-semibold">
+                      <div className="flex justify-between text-slate-500">
                         <span>Free Cancellation protection</span>
-                        <strong className="text-slate-700 font-bold">+₹{selectedSeats.length * 99}</strong>
+                        <strong className="text-slate-700 font-extrabold">+₹{selectedSeats.length * 99}</strong>
                       </div>
                     )}
 
                     {insureJourney && (
-                      <div className="flex justify-between text-slate-500 font-semibold">
+                      <div className="flex justify-between text-slate-500">
                         <span>Journey accident shield</span>
-                        <strong className="text-slate-700 font-bold">+₹{selectedSeats.length * 15}</strong>
+                        <strong className="text-slate-700 font-extrabold">+₹{selectedSeats.length * 15}</strong>
                       </div>
                     )}
 
                     <div className="flex justify-between">
-                      <span>Convenience registration service fee</span>
-                      <strong className="text-slate-700">+₹45</strong>
+                      <span>Convenience GST service fee</span>
+                      <strong className="text-slate-700 font-extrabold">+₹45</strong>
                     </div>
 
-                    <div className="flex justify-between pt-3 border-t border-dashed border-slate-200 text-blue-600 font-black text-sm">
-                      <span>Total Amount Charged</span>
+                    <div className="flex justify-between pt-3 border-t border-dashed border-slate-200 text-blue-600 font-black text-xs uppercase tracking-wider">
+                      <span>Total Invoice</span>
                       <span className="text-base text-blue-700 font-black">₹{calculateTotalCharge()}</span>
                     </div>
 
@@ -1868,10 +2117,15 @@ export default function BookingDashboard({
 
                   <button 
                     onClick={handleConfirmPayment}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl shadow-lg transition-transform active:scale-[0.98] text-xs uppercase tracking-wider block text-center cursor-pointer"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl shadow-lg shadow-blue-500/20 transition-transform active:scale-[0.98] text-xs uppercase tracking-wider block text-center cursor-pointer"
                   >
-                    Authorize Payment (₹{calculateTotalCharge()})
+                    Authorize Ticket & Pay ₹{calculateTotalCharge()}
                   </button>
+
+                  <div className="flex items-center justify-center gap-2 text-[9px] font-bold text-slate-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>256-bit encrypted secure checkout connection</span>
+                  </div>
 
                 </div>
               </div>
